@@ -18,7 +18,7 @@ The Better Bites mobile app allows users to take pictures of food ingredients. T
 1. Clone the repository:
    ```
    git clone https://github.com/your-username/better-bites-backend.git
-   cd better-bites-backend
+   cd better-bites-be
    ```
 
 2. Set up a virtual environment:
