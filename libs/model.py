@@ -14,12 +14,12 @@ class Nutritionist:
         pass
 
     def get_advice_from_ingredients(self, ingredients):
-        prompt = f"""You are a nutritionist dietitian. Based on the following ingredients, give any possible unsuitable ingredients with explanation and suggest additional suitable ingredients with short explanation that would complement the meal and improve its nutritional value, and also provide health tips based from the input given. Your response must be in valid JSON format with the following structure:
+        prompt = f"""You are a nutritionist dietitian. Based on the following ingredients, give any possible unsuitable ingredients with explanation and suggest additional suitable ingredients with short explanation that would complement the meal and improve its nutritional value, and also provide health tips with title and description based from the input given. Your response must be in valid JSON format with the following structure:
 
         {{
         "suitable_ingredients": [{ "name": "ingredient1", "description": "_explain_" }, { "name": "ingredient2", "description": "_explain_" }, { "name": "ingredient3", "description": "_explain_" }],
         "unsuitable_ingredients": [{ "name": "ingredient1", "description": "_explain_" }, { "name": "ingredient2", "description": "_explain_" }, { "name": "ingredient3", "description": "_explain_" }],
-        "health_tips": ["tip1", "tip2", "tip3"]
+            "health_tips": [{ "name": "tip1", "description": "_explain_" }, { "name": "tip2", "description": "_explain_" }, { "name": "tip3", "description": "_explain_" }] 
         }}
 
         The input is unprocessed and may contain errors. If you detect any fraudulent or malicious content, respond with a JSON object containing an 'error' key, like this:
