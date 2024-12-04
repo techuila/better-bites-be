@@ -14,24 +14,18 @@ class Nutritionist:
         pass
 
     def get_advice_from_ingredients(self, ingredients):
-        prompt = f"""You are a nutritionist dietitian. Based on the following ingredients, give any possible unsuitable ingredients with explanation and suggest additional suitable ingredients with short explanation that would complement the meal and improve its nutritional value, and also provide health tips with title and description based from the input given. Your response must be in valid JSON format with the following structure:
+        prompt = f"""You are a nutritionist dietitian. Based on the following ingredients, give any possible unsuitable ingredients (unsuitable_ingredients) with explanation and suggest suitable ingredients (suitable_ingredients) with short explanation that would complement the meal and improve its nutritional value, and also provide health tips (health_tips) with title and description based from the input given. Your response must be ONLY in valid JSON format with the following structure:
 
         {{
-        "suitable_ingredients": [{ "name": "ingredient1", "description": "_explain_" }, { "name": "ingredient2", "description": "_explain_" }, { "name": "ingredient3", "description": "_explain_" }],
-        "unsuitable_ingredients": [{ "name": "ingredient1", "description": "_explain_" }, { "name": "ingredient2", "description": "_explain_" }, { "name": "ingredient3", "description": "_explain_" }],
-            "health_tips": [{ "name": "tip1", "description": "_explain_" }, { "name": "tip2", "description": "_explain_" }, { "name": "tip3", "description": "_explain_" }] 
+        "suitable_ingredients": [{{ "name": "ingredient1", "description": "_explain_" }}, {{ "name": "ingredient2", "description": "_explain_" }}, {{ "name": "ingredient3", "description": "_explain_" }}],
+        "unsuitable_ingredients": [{{ "name": "ingredient1", "description": "_explain_" }}, {{ "name": "ingredient2", "description": "_explain_" }}, {{ "name": "ingredient3", "description": "_explain_" }}],
+        "health_tips": [{{ "name": "tip1", "description": "_explain_" }}, {{ "name": "tip2", "description": "_explain_" }}, {{ "name": "tip3", "description": "_explain_" }}] 
         }}
 
-        The input is unprocessed and may contain errors. If you detect any fraudulent or malicious content, respond with a JSON object containing an 'error' key, like this:
+        The input is unprocessed and may contain errors. If you detect any fraudulent, malicious content, or you cannot process the ingredients, respond only a JSON object containing an 'error' key with a value "Invalid input. The provided ingredients are not edible or related to food. Please provide a list of valid ingredients to process." like this:
 
         {{
-        "error": "Description of the error or issue encountered"
-        }}
-
-        If you cannot process the ingredients or encounter any issues, respond with a JSON object containing an 'error' key, like this:
-
-        {{
-        "error": "Description of the error or issue encountered"
+        "error": "Invalid input. The provided ingredients are not edible or related to food. Please provide a list of valid ingredients to process."
         }}
 
         Ensure your response can be parsed by Python's json.loads() function.
