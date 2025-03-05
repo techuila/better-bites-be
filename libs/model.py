@@ -1,39 +1,116 @@
-from flask import jsonify
+from flask import Flask, jsonify, request
 from groq import Groq
 from dotenv import load_dotenv
 import os
+import json
+import logging
+import re
 
+# Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+def get_api_key():
+    """Fetch API key from environment variables."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        logging.error("Error: GROQ_API_KEY is not set. Check your .env file.")
+        raise ValueError("Error: GROQ_API_KEY is not set. Check your .env file.")
+    return api_key
+
 class Nutritionist:
+    """
+    Nutritionist class to analyze food ingredients for education and health awareness.
+    - Uses the Groq API to generate analysis.
+    - Bases analysis on user profile: age, sex, height, weight, and health conditions.
+    """
     MODEL = "llama3-70b-8192"
-    model_response_error = "Model returned an invalid json response."
+    model_response_error = "Model returned an invalid JSON response."
 
     def __init__(self):
-        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        pass
+        """Initialize Groq API client."""
+        self.client = Groq(api_key=get_api_key())
 
-    def get_advice_from_ingredients(self, ingredients):
-        prompt = f"""You are a nutritionist dietitian. Based on the following ingredients, give a title, any possible unsuitable ingredients (unsuitable_ingredients) with explanation and suggest suitable ingredients (suitable_ingredients) with short explanation that would complement the meal and improve its nutritional value, and also provide health tips (health_tips) with title and description based from the input given. Your response must be ONLY in valid JSON format with the following structure:
+    def extract_amounts(self, ingredient):
+        """Extract %, g, or ml values from an ingredient name."""
+        match = re.search(r"(\d+(\.\d+)?\s*(%|g|ml))", ingredient)
+        return match.group(0) if match else None
 
-        {{
-        "suitable_ingredients": [{{ "name": "ingredient1", "description": "_explain_" }}, {{ "name": "ingredient2", "description": "_explain_" }}, {{ "name": "ingredient3", "description": "_explain_" }}],
-        "unsuitable_ingredients": [{{ "name": "ingredient1", "description": "_explain_" }}, {{ "name": "ingredient2", "description": "_explain_" }}, {{ "name": "ingredient3", "description": "_explain_" }}],
-        "health_tips": [{{ "name": "tip1", "description": "_explain_" }}, {{ "name": "tip2", "description": "_explain_" }}, {{ "name": "tip3", "description": "_explain_" }}],
-        "title": "Title of the meal"
-        }}
+    def get_advice_from_ingredients(self, ingredients, user_profile):
+        """
+        Analyze ingredients and return educational nutritional advice.
+        - Uses age, sex, height, weight, and health conditions for context.
+        - Highlights nutritional benefits, health risks (e.g., allergies), and allergens.
+        """
+        # Ensure all ingredients are strings
+        if not all(isinstance(ing, str) for ing in ingredients):
+            return jsonify({"error": "Invalid input. Ingredients must be a list of strings."}), 400
 
-        The input is unprocessed and may contain errors. If you detect any fraudulent, malicious content, or you cannot process the ingredients, respond only a JSON object containing an 'error' key with a value "Invalid input. The provided ingredients are not edible or related to food. Please provide a list of valid ingredients to process." like this:
+        # Identify ingredients with amounts (%, g, ml)
+        ingredients_with_amounts = {
+            ing: self.extract_amounts(ing) for ing in ingredients if self.extract_amounts(ing)
+        }
 
-        {{
-        "error": "Invalid input. The provided ingredients are not edible or related to food. Please provide a list of valid ingredients to process."
-        }}
+        # Prompt using complete user profile for education and health awareness
+        prompt = f"""
+        You are a professional nutritionist. Analyze the given ingredients with amounts (e.g., %, g, ml) and the user’s health profile to educate about nutrition and health awareness. Use the user’s age, sex, height, weight, and health conditions (if any) to provide context, such as general nutritional needs or health risks.
 
-        Ensure your response can be parsed by Python's json.loads() function.
+        1. **List suitable ingredients** with their nutritional benefits and general recommended intake, adjusted for the user’s profile (e.g., age, sex, weight considerations).
+        2. **Identify unsuitable ingredients** based on health conditions (e.g., allergies) if provided, or general health concerns if not, with alternatives to broaden understanding.
+        3. **Categorize all allergens separately**, including common allergens (e.g., nuts, shellfish, dairy) regardless of user profile, explaining why they’re allergens and potential reactions.
+        4. **Ensure all provided ingredients are accounted for** in the response (suitable, unsuitable, or allergens).
+        5. **For ingredients with amounts (e.g., %, g, ml)**, explain their nutritional impact based on the user’s profile (e.g., calorie density relative to weight, sodium for blood pressure).
+        6. **In the Health Tips section**, provide general educational advice about all scanned ingredients, tailored to the user’s profile where applicable (e.g., allergy awareness, weight management).
+
+        Ingredients with amounts: {ingredients_with_amounts}
+
+        User Profile:
+        {user_profile}
 
         Ingredients: {ingredients}
 
-        JSON Response:"""
+        **Response Format (ONLY return valid JSON)**:
+        {{
+            "title": "Ingredient Analysis",
+            "suitable_ingredients": [
+                {{
+                    "name": "Ingredient Name (if applicable, include volume: e.g., 30g, 250ml, 10%)",
+                    "description": "Provide a clear explanation of the ingredient's nutritional benefits and why it’s generally healthy, considering age, sex, height, and weight.",
+                    "Recommended Intake": "Specify a general recommended intake amount, adjusted for the user’s profile (e.g., 30g per meal, consume in moderation)."
+                }}
+            ],
+            "unsuitable_ingredients": [
+                {{
+                    "name": "Ingredient Name (if applicable, include volume: e.g., 30g, 250ml, 10%)",
+                    "description": "Provide a clear explanation of why this ingredient might be a concern, based on health conditions or general nutrition relative to the user’s profile.",
+                    "alternatives": "Suggest healthier or safer options to explore (e.g., 10g of a substitute)."
+                }}
+            ],
+            "allergens": [
+                {{
+                    "name": "Ingredient Name (if applicable, include volume: e.g., 30g, 250ml, 10%)",
+                    "description": "Provide a clear explanation of why this ingredient is considered a common allergen.",
+                    "Potential Reaction": "Explain how it may affect sensitive individuals (e.g., allergic reactions, digestive issues)."
+                }}
+            ],
+            "health_tips": [
+                {{
+                    "name": "Educational Health Tip",
+                    "description": "Provide a clear explanation of a health concept related to these ingredients, tailored to the user’s age, sex, height, weight, and health conditions.",
+                    "suggestion": "Give actionable advice for better health awareness (e.g., monitor portions, avoid allergens)."
+                }}
+            ]
+        }}
+
+        If the ingredients are invalid or unrelated to food, return:
+        {{
+            "error": "Invalid input. Provide valid food ingredients."
+        }}
+
+        JSON Response:
+        """
 
         try:
             response = self.client.chat.completions.create(
@@ -42,17 +119,51 @@ class Nutritionist:
                     {"role": "system", "content": "You are a nutritionist dietitian. Always respond in valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=1,
+                temperature=0.7,
                 max_tokens=1024,
                 top_p=1,
-                stream=False,
-                stop=None,
+                stream=False
             )
 
-            print(response.choices[0].message.content)
+            response_text = response.choices[0].message.content.strip()
+            logging.info(f"Model Response: {response_text}")
 
-            return response.choices[0].message.content.strip()
+            # Validate JSON format
+            try:
+                parsed_response = json.loads(response_text)
+                return jsonify(parsed_response)
+            except json.JSONDecodeError:
+                logging.error("Invalid JSON received from model.")
+                return jsonify({"error": self.model_response_error}), 500
+
         except Exception as e:
-            print(e)
+            logging.error(f"Error encountered: {e}")
             return jsonify({"error": "Error encountered from Groq API"}), 500
 
+# Flask App Setup
+app = Flask(__name__)
+nutritionist = Nutritionist()
+
+@app.route('/analyze', methods=['POST'])
+def analyze_ingredients():
+    """
+    API endpoint to analyze ingredients for educational purposes.
+    - Receives JSON with 'ingredients' and optional 'user_profile' (age, sex, height, weight, health_conditions).
+    - Returns a JSON response with nutritional education and health awareness.
+    """
+    try:
+        data = request.get_json()
+        ingredients = data.get('ingredients', [])
+        user_profile = data.get('user_profile', {})  # Expects age, sex, height, weight, health_conditions
+
+        if not ingredients:
+            return jsonify({"error": "No ingredients provided."}), 400
+
+        return nutritionist.get_advice_from_ingredients(ingredients, user_profile)
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return jsonify({"error": "Internal server error."}), 500
+
+# Run Flask application
+if __name__ == '__main__':
+    app.run(port=3000, debug=True)
