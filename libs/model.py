@@ -140,30 +140,3 @@ class Nutritionist:
             logging.error(f"Error encountered: {e}")
             return jsonify({"error": "Error encountered from Groq API"}), 500
 
-# Flask App Setup
-app = Flask(__name__)
-nutritionist = Nutritionist()
-
-@app.route('/analyze', methods=['POST'])
-def analyze_ingredients():
-    """
-    API endpoint to analyze ingredients for educational purposes.
-    - Receives JSON with 'ingredients' and optional 'user_profile' (age, sex, height, weight, health_conditions).
-    - Returns a JSON response with nutritional education and health awareness.
-    """
-    try:
-        data = request.get_json()
-        ingredients = data.get('ingredients', [])
-        user_profile = data.get('user_profile', {})  # Expects age, sex, height, weight, health_conditions
-
-        if not ingredients:
-            return jsonify({"error": "No ingredients provided."}), 400
-
-        return nutritionist.get_advice_from_ingredients(ingredients, user_profile)
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        return jsonify({"error": "Internal server error."}), 500
-
-# Run Flask application
-if __name__ == '__main__':
-    app.run(port=3000, debug=True)

@@ -23,12 +23,12 @@ app = Flask(__name__)
 def analyze_ingredients():
     data = request.get_json()
     ingredients = data.get('ingredients', [])  # Default to empty list if not provided
-    user_profile = data.get('user_profile', '')  # Default to empty string if not provided
+    user_profile = data.get('user_profile', {})  # Default to empty dictionary if not provided
 
     if not ingredients:
         return jsonify({"error": "No ingredients provided"}), 400
 
-    # Pass both ingredients and user_profile to the updated Nutritionist method
+    # Pass both ingredients and user_profile to the Nutritionist method
     return nutritionist.get_advice_from_ingredients(ingredients, user_profile)
 
 if __name__ == '__main__':
